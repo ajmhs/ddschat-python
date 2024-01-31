@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<dds xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://community.rti.com/schema/7.2.0/rti_routing_service.xsd" version="7.2.0">
+    <types>
+      <const name="MAX_NAME_SIZE" type="int32" value="128"/>
+      <const name="MAX_MSG_SIZE" type="int32" value="512"/>
+      <struct name="ChatUser">
+        <member name="username" type="string" stringMaxLength="MAX_NAME_SIZE" key="true"/>
+        <member name="group" type="string" stringMaxLength="MAX_NAME_SIZE"/>
+        <member name="firstName" type="string" stringMaxLength="MAX_NAME_SIZE" optional="true"/>
+        <member name="lastName" type="string" stringMaxLength="MAX_NAME_SIZE" optional="true"/>
+      </struct>
+      <struct name="ChatMessage">
+        <member name="fromUser" type="string" stringMaxLength="MAX_NAME_SIZE" key="true"/>
+        <member name="toUser" type="string" stringMaxLength="MAX_NAME_SIZE" key="true"/>
+        <member name="toGroup" type="string" stringMaxLength="MAX_NAME_SIZE" key="true"/>
+        <member name="message" type="string" stringMaxLength="MAX_MSG_SIZE" key="true"/>
+      </struct>
+    </types>
+
+    <qos_library name="chat_library">
+      <qos_profile name="Chat_Profile">
+        <domain_participant_qos>
+          <participant_name>
+            <name>ChatApp</name>
+          </participant_name>
+        </domain_participant_qos>
+      </qos_profile>
+      <qos_profile name="ChatUser_Profile" base_name="BuiltinQosLib::Pattern.Status">
+        <datareader_qos>
+          <liveliness>
+            <lease_duration>
+              <sec>3</sec>
+              <nanosec>0</nanosec>
+            </lease_duration>
+          </liveliness>
+          <subscription_name>
+            <name>ChatUser_Reader</name>
+          </subscription_name>
+        </datareader_qos>
+        <datawriter_qos>
+          <liveliness>
+            <lease_duration>
+              <sec>2</sec>
+              <nanosec>0</nanosec>
+            </lease_duration>
+          </liveliness>
+          <publication_name>
+            <name>ChatUser_Writer</name>
+          </publication_name>
+        </datawriter_qos>
+      </qos_profile>
+      <qos_profile name="ChatMessage_Profile">
+        <publisher_qos>
+          <partition>
+            <name>
+              <element>$(group)</element>
+            </name>
+          </partition>
+        </publisher_qos>
+        <subscriber_qos>
+          <partition>
+            <name>
+              <element>$(group)</element>
+            </name>
+          </partition>
+        </subscriber_qos>
+        <datareader_qos>
+          <subscription_name>
+            <name>ChatMessage_Reader</name>
+          </subscription_name>
+        </datareader_qos>
+        <datawriter_qos>
+          <reliability>
+            <kind>BEST_EFFORT_RELIABILITY_QOS</kind>
+          </reliability>
+          <publication_name>
+            <name>ChatMessage_Writer</name>
+          </publication_name>
+        </datawriter_qos>
+      </qos_profile>
+    </qos_library>
+
+    <domain_library name="Chat_DomainLibrary">
+      <domain name="Chat_Domain" domain_id="69">
+        <register_type name="ChatUser" type_ref="ChatUser"/>
+        <register_type name="ChatMessage" type_ref="ChatMessage"/>
+        <topic name="userInfo" register_type_ref="ChatUser"/>
+        <topic name="message" register_type_ref="ChatMessage"/>
+      </domain>
+    </domain_library>
+
+    <domain_participant_library name="Chat_ParticipantLibrary">
+      <domain_participant name="ChatParticipant" domain_ref="Chat_DomainLibrary::Chat_Domain">
+        <publisher name="ChatUserPublisher">
+          <data_writer name="ChatUserWriter" topic_ref="userInfo">
+            <datawriter_qos base_name="chat_library::ChatUser_Profile">
+            </datawriter_qos>
+          </data_writer>
+        </publisher>
+        <publisher name="ChatMessagePublisher">
+          <data_writer name="ChatMessageWriter" topic_ref="message">
+            <datawriter_qos base_name="chat_library::ChatMessage_Profile">
+            </datawriter_qos>
+          </data_writer>
+          <publisher_qos base_name="chat_library::ChatMessage_Profile">
+          </publisher_qos>
+        </publisher>
+        <subscriber name="ChatUserSubscriber">
+          <data_reader name="ChatUserReader" topic_ref="userInfo">
+            <datareader_qos base_name="chat_library::ChatUser_Profile">
+            </datareader_qos>
+          </data_reader>
+        </subscriber>
+        <subscriber name="ChatMessageSubscriber">
+          <data_reader name="ChatMessageReader" topic_ref="message">
+            <content_filter name="MessageFilter" kind="builtin.sql">
+              <expression>(toUser MATCH %0) or (toGroup MATCH %1)</expression>
+              <expression_parameters>
+                <element>&apos;$(user)&apos;</element>
+                <element>&apos;$(group)&apos;</element>
+              </expression_parameters>
+            </content_filter>
+            <datareader_qos base_name="chat_library::ChatMessage_Profile">
+            </datareader_qos>
+          </data_reader>
+          <subscriber_qos base_name="chat_library::ChatMessage_Profile">
+          </subscriber_qos>
+        </subscriber>
+        <domain_participant_qos base_name="chat_library::Chat_Profile">
+        </domain_participant_qos>
+      </domain_participant>
+    </domain_participant_library>
+
+</dds>
