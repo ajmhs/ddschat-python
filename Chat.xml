@@ -80,8 +80,9 @@
       </qos_profile>
     </qos_library>
 
+
     <domain_library name="Chat_DomainLibrary">
-      <domain name="Chat_Domain" domain_id="69">
+      <domain name="Chat_Domain" domain_id="7">
         <register_type name="ChatUser" type_ref="ChatUser"/>
         <register_type name="ChatMessage" type_ref="ChatMessage"/>
         <topic name="userInfo" register_type_ref="ChatUser"/>
